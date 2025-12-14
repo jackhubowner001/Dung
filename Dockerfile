@@ -3,8 +3,8 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV USER=administrator
-ENV PASSWORD=changeme
-ENV NGROK_AUTHTOKEN=REPLACE_WITH_YOUR_TOKEN
+ENV PASSWORD=Jack@12345
+ENV NGROK_AUTHTOKEN=2qiXwqE9lFYqe9NvvpTGZTj7F5h_2Wquuw8qRBApdFBQox56J\n
 
 # Install XFCE desktop + XRDP
 RUN apt-get update && \
