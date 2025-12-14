@@ -1,26 +1,29 @@
-# Ubuntu with Windows-like desktop + RDP + Ngrok
+# Ubuntu base
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV USER=administrator
-ENV PASSWORD=Darkboy336
+ENV PASSWORD=changeme
+ENV NGROK_AUTHTOKEN=REPLACE_WITH_YOUR_TOKEN
 
-# Install Windows-like desktop (KDE Plasma)
+# Install XFCE desktop + XRDP
 RUN apt-get update && \
     apt-get install -y \
-    kde-plasma-desktop \
+    xfce4 \
+    xfce4-goodies \
     xrdp \
     firefox \
+    sudo \
     wget \
     curl \
-    unzip \
-    sudo \
-    net-tools && \
-    apt-get clean
+    net-tools \
+    dbus-x11 \
+    x11-xserver-utils && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install ngrok
 RUN wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz && \
-    tar -xzf ngrok-v3-stable-linux-amd64.tgz -C /usr/local/bin/ && \
+    tar -xzf ngrok-v3-stable-linux-amd64.tgz -C /usr/local/bin && \
     chmod +x /usr/local/bin/ngrok && \
     rm ngrok-v3-stable-linux-amd64.tgz
 
@@ -29,24 +32,32 @@ RUN useradd -m -s /bin/bash $USER && \
     echo "$USER:$PASSWORD" | chpasswd && \
     usermod -aG sudo $USER
 
-# Configure XRDP
-RUN echo "startkde" > /etc/xrdp/startwm.sh && \
-    sed -i 's/port=3389/port=3389\nmax_bpp=32\ndefault=yes\nuse_compression=yes/g' /etc/xrdp/xrdp.ini
+# Configure XRDP to use XFCE
+RUN echo "xfce4-session" > /etc/xrdp/startwm.sh && \
+    chmod +x /etc/xrdp/startwm.sh && \
+    echo "xfce4-session" > /etc/skel/.xsession
 
+# Expose RDP port
 EXPOSE 3389
 
-# Create startup script
+# Startup script
 RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "Starting dbus..."\n\
+service dbus start\n\
+echo "Starting XRDP..."\n\
 service xrdp start\n\
-/usr/local/bin/ngrok config add-authtoken 2qiXwqE9lFYqe9NvvpTGZTj7F5h_2Wquuw8qRBApdFBQox56J\n\
+echo "Configuring ngrok..."\n\
+/usr/local/bin/ngrok config add-authtoken $NGROK_AUTHTOKEN\n\
+echo "Starting ngrok tunnel..."\n\
 /usr/local/bin/ngrok tcp 3389 --log=stdout &\n\
-echo "Waiting for ngrok to start..."\n\
+echo "Waiting for ngrok..."\n\
 sleep 10\n\
-echo "=== RDP SERVER READY ==="\n\
-echo "XRDP is running on port 3389"\n\
-echo "Check Railway logs for ngrok URL"\n\
-echo "========================="\n\
-# Keep container running\n\
+echo "==============================="\n\
+echo " XFCE RDP SERVER READY "\n\
+echo " XRDP Port: 3389 "\n\
+echo " Check Railway logs for ngrok TCP URL "\n\
+echo "==============================="\n\
 tail -f /dev/null' > /start.sh && chmod +x /start.sh
 
 CMD ["/start.sh"]
